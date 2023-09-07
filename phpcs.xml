@@ -1,0 +1,69 @@
+<?xml version="1.0"?>
+<ruleset 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	name="WordPress Coding Standard 3.0" 
+	xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/squizlabs/PHP_CodeSniffer/master/phpcs.xsd">
+
+	<description>WPPOOL Coding Standard 3</description>
+
+	
+	<file>.</file>
+
+	<!-- BASIC Configuration -->
+	<arg name="extensions" value="php" />
+	<arg name="basepath" value="."/> <!-- Strip the filepaths down to the relevant bit. -->
+	<arg name="parallel" value="20"/> <!-- Check up to 20 files simultaneously. -->
+    <arg value="ps" /> <!-- Show progress -->
+	<arg name="colors" /> <!-- Show colors in console -->
+    <arg value="ns" /> <!-- Show sniff codes in all reports -->
+
+	<!--
+	#############################################################################
+	FILES
+	#############################################################################
+	-->
+
+	<config name="testVersion" value="7.0-" />
+
+	<rule ref="Squiz.Commenting.FileComment.Missing" /> <!-- Missing file doc comment -->
+	<rule ref="Squiz.Classes.ClassFileName"  /> <!-- Class name doesn't match filename -->
+	<rule ref="Squiz.Classes.ValidClassName" /> <!-- Valid class name -->
+	<rule ref="Squiz.Classes.ClassFileName">
+		<exclude name="Squiz.Classes.ClassFileName.NoMatch" />
+        <exclude name="Squiz.Classes.ValidClassName.NotCamelCaps" />
+	</rule>
+	<!--
+	#############################################################################
+	GENERIC
+	#############################################################################
+	-->
+	
+	<rule ref="Generic.Commenting"/> <!-- Commenting -->
+	<rule ref="Generic.CodeAnalysis" /> <!-- Code analysis -->
+	<rule ref="Generic.WhiteSpace" /> <!-- spacing and indentation -->
+	<rule ref="Generic.WhiteSpace.DisallowTabIndent"> <!-- Allow tab indent  -->
+		<exclude name="Generic.WhiteSpace.DisallowTabIndent.TabsUsed" />
+	</rule>
+	<!-- <rule ref="Universal.Arrays.DisallowLongArraySyntax">  -->
+	<rule ref="Universal"> 
+		<exclude name="Universal.Arrays.DisallowShortArraySyntax" />
+        <exclude name="Universal.ControlStructures.DisallowLonelyIf.Found" />
+        <exclude name="Universal.Classes.RequireFinalClass.NonFinalClassFound" />
+        <exclude name="Universal.ControlStructures.IfElseDeclaration.NoNewLine" />
+        <exclude name="Universal.ControlStructures.DisallowAlternativeSyntax.FoundIfWithInlineHTML" />
+        <exclude name="Universal.Namespaces.EnforceCurlyBraceSyntax.Forbidden" />
+        <exclude name="Universal.Files.SeparateFunctionsFromOO.Mixed" />
+	</rule>
+	<rule ref="Generic.Functions.FunctionCallArgumentSpacing"> <!-- whitespace in function arguements  -->
+		<exclude
+      name="Generic.Functions.FunctionCallArgumentSpacing.NoSpaceAfterComma"
+    />
+	</rule>
+	<rule ref="Generic.Classes.DuplicateClassName">
+		<type>warning</type>
+	</rule>
+	
+
+	<rule ref="PEAR.Functions.FunctionCallSignature.EmptyLine" /> <!-- Empty line before function call  -->
+	
+</ruleset>

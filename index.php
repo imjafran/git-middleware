@@ -1,179 +1,168 @@
-<?php 
-## phpcs:ignoreFile
+<?php
+
+namespace WPPOOL\MicroApp;
 
 class GitMiddleware {
 
+	/**
+	 * Username
+	 *
+	 * @var string
+	 */
+	private $username = 'imjafran';
+
+	/**
+	 * Repository
+	 *
+	 * @var string
+	 */
+	private $repository = 'git-updater';
+
+	/**
+	 * Access token
+	 *
+	 * @var string
+	 */
+	private $access_token = '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';
+
+
     /**
-     * Fetch git release
+     * Home
      *
-     * @return mixed
+     * @var string
      */
-    public function input( $key, $default = null ) : mixed {
-        // return and validate input, sanitize input from $_REQUEST
-        return isset( $_REQUEST[ $key ] ) ? (string) $_REQUEST[ $key ] : $default;
-    }
+    private $home = 'http://php.local/micro/git-middleware/';
 
-    /**
-     * Send response
-     *
-     * @param string $message 
-     * @param int $status
-     * @return void
-     */
-    public function send_response( bool $success = true, $message = '' ) : void {
-        $response = [
-            'success' => $success
-        ];
+	/**
+	 * Fetch git release
+	 *
+	 * @return mixed
+	 */
+	public function input( $key, $default = null ) : mixed {
+		// return and validate input, sanitize input from $_REQUEST
+		return isset( $_REQUEST[ $key ] ) ? (string) $_REQUEST[ $key ] : $default;
+	}
 
-        if ( is_array($message) ) {
-            $response = array_merge( $response, $message );
-        } else {
-            $response['message'] = $message;
-        }
+	/**
+	 * Send response
+	 *
+	 * @param string $message
+	 * @param int    $status
+	 * @return void
+	 */
+	public function send_response( bool $success = true, $message = '' ) : void {
+		$response = [
+			'success' => $success,
+		];
 
-        header( 'Content-Type: application/json' );
-        echo json_encode( $response );
-        exit;
-    }
+		if ( is_array($message) ) {
+			$response = array_merge( $response, $message );
+		} else {
+			$response['message'] = $message;
+		}
 
-    /**
-     * Initialize middleware
-     *
-     * @return void
-     */
-    public function init() : void {
-        $action = $this->input( 'action', 'get' );
+		header( 'Content-Type: application/json' );
+		echo json_encode( $response );
+		exit;
+	}
 
-        $action = 'action_' . $action;
-        if ( method_exists( $this, $action ) ) {
-            $this->$action();
-        } else {
-            $this->send_response( false, 'Invalid action' );
-        }
-    }
+	/**
+	 * Initialize middleware
+	 *
+	 * @return void
+	 */
+	public function init() : void {
+		$action = $this->input( 'action', 'get' );
 
-    /**
-     * HTTP request
-     *s
-     * @param string $url URL (optional)
-     * @param string|null $bearer_token Bearer token (optional)
-     * @return mixed
-     */
-    function request( string $url = '', $bearer_token = null) {
-        // Initialize cURL session
-        $ch = curl_init();
+		$action = 'action_' . $action;
+		if ( method_exists( $this, $action ) ) {
+			$this->$action();
+		} else {
+			$this->send_response( false, 'Invalid action' );
+		}
+	}
 
-        // Set the cURL options
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+	/**
+	 * Handle REST actions
+	 *
+	 * @return void
+	 */
+	public function action_get() : void {
 
-        // If a bearer token is provided, set the Authorization header
-        if ($bearer_token !== null) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'User-Agent: WPPOOL-App',
-                'Authorization: Bearer ' . $bearer_token
-            ]);
-        }
+		$url = sprintf( 'https://api.github.com/repos/%s/%s', $this->username, $this->repository );
 
-        // Disable SSL verification (not recommended for production)
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+		// Set tag
+		$tag = $this->input( 'tag' );
+		if ( empty( $tag ) || $tag === 'latest' ) {
+			$url .= '/releases/latest';
+		} else {
+			$url .= '/releases/tags/' . $tag;
+		}
 
-        // Execute the cURL request and capture the response
-        $response = curl_exec($ch);
+		// CURL
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_HTTPHEADER, [
+			'User-Agent: WPPOOL-App',
+			'Authorization: Bearer ' . $this->access_token,
+		]);
+		// Disable SSL verification (not recommended for production)
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+		$response = curl_exec($ch);
 
-        // Check for cURL errors
-        if (curl_errno($ch)) {
-            // Handle error, e.g., return an error response or throw an exception
-            return (object) ['error' => 'Curl Error: ' . curl_error($ch)];
-        }
+		// Check for cURL errors
+		if ( curl_errno($ch) ) {
+			$this->send_response( false, 'Curl Error: ' . curl_error($ch) );
+		}
 
-        // Close cURL session
-        curl_close($ch);
+		curl_close($ch);
 
-        // Return the HTTP response as-is (you may want to parse it if it's JSON, XML, etc.)
-        return json_decode($response);
-    }
+		$response = json_decode($response);
 
-    /**
-     * Handle REST actions
-     *
-     * @return void
-     */
-    public function action_get() : void {
-        
-        // check username, repository; required
-        if ( ! $this->input( 'username' ) || ! $this->input( 'repository' ) ) {
-            $this->send_response( false, 'Username and repository required' );
-        }
+        $download_url = sprintf( '%s?action=download&tag=%s', $this->home, $response->tag_name);
 
-        $username = $this->input( 'username' );
-        $repository = $this->input( 'repository' );
-        $access_token = $this->input( 'access_token' );
+		$this->send_response( true, [
+			'version' => $response->tag_name,
+			'download_url' => $download_url,
+		] );
+	}
 
-        $git_url = 'https://api.github.com/repos/' . $username . '/' . $repository;
+	/**
+	 * Action Download
+	 */
+	public function action_download() {
+		$tag = $this->input( 'tag' );
 
-        $tag = $this->input( 'tag' );
+		// If tag is empty
+		if ( empty( $tag ) ) {
+			$this->send_response( false, 'Tag is required' );
+		}
 
-        if ( $tag ) {
-            $git_url .= '/releases/tags/' . $tag;
-        } else {
-            $git_url .= '/releases/latest';
-        }
+		$download_url = 'https://api.github.com/repos/' . $this->username . '/' . $this->repository . '/zipball/' . $tag;
 
-        // get git info
-        $git_info = $this->request( $git_url, $access_token );
+		// get download using curl and send response as download
+		$cr = curl_init( $download_url );
+		curl_setopt( $cr, CURLOPT_RETURNTRANSFER, true );
+		curl_setopt( $cr, CURLOPT_FOLLOWLOCATION, true );
+		curl_setopt( $cr, CURLOPT_SSL_VERIFYPEER, false );
+		curl_setopt( $cr, CURLOPT_SSL_VERIFYHOST, false );
 
-        // if any error
-        if ( isset( $git_info->error ) ) {
-            $this->send_response( false, $git_info->error );
-        }
+		curl_setopt($cr, CURLOPT_HTTPHEADER, [
+			'User-Agent: WPPOOL-App',
+			'Authorization: Bearer ' . $this->access_token,
+		]);
 
-        $download_url = 'http://php.local/micro/git-middleware/?action=download&username=' . $username . '&repository=' . $repository . '&access_token=' . $access_token . '&tag=' . $git_info->tag_name;
-        
-        $this->send_response( true, [
-            'version' => $git_info->tag_name,
-            'download_url' => $download_url,
-        ] );
-    }
+		$download = curl_exec( $cr );
+		curl_close( $cr );
 
-    /**
-     * Action Download
-     */
-    public function action_download() {
-        // check username, repository; required
-        if ( ! $this->input( 'username' ) || ! $this->input( 'repository' ) || ! $this->input( 'tag' ) ) {
-            $this->send_response( false, 'Username, repository and tag required' );
-        }
+		header( 'Content-Type: application/zip' );
+		header( 'Content-Disposition: attachment; filename="' . $this->repository . '.zip"' );
+		header( 'Content-Length: ' . strlen( $download ) );
+		echo $download;
 
-        $username = $this->input( 'username' );
-        $repository = $this->input( 'repository' );
-        $access_token = $this->input( 'access_token' );
-        $tag = $this->input( 'tag' );
-
-        $download_url = 'https://api.github.com/repos/' . $username . '/' . $repository . '/zipball/' . $tag;
-
-        // get download using curl and send response as download
-        $cr = curl_init( $download_url );
-        curl_setopt( $cr, CURLOPT_RETURNTRANSFER, true );
-        curl_setopt( $cr, CURLOPT_FOLLOWLOCATION, true );
-        curl_setopt( $cr, CURLOPT_SSL_VERIFYPEER, false );
-        curl_setopt( $cr, CURLOPT_SSL_VERIFYHOST, false );
-
-        curl_setopt($cr, CURLOPT_HTTPHEADER, [
-            'User-Agent: WPPOOL-App',
-            'Authorization: Bearer ' . $access_token
-        ]);
-
-        $download = curl_exec( $cr );
-        curl_close( $cr );
-
-        header( 'Content-Type: application/zip' );
-        header( 'Content-Disposition: attachment; filename="' . $repository . '.zip"' );
-        header( 'Content-Length: ' . strlen( $download ) );
-        echo $download;
-
-        exit;
-    }
+		exit;
+	}
 
 
 }
@@ -181,4 +170,4 @@ class GitMiddleware {
 /**
  * Init middleware
  */
-(new GitMiddleware())->init();
+( new GitMiddleware() )->init();
